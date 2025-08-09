@@ -257,4 +257,5 @@ Use `--target-net` with positive (surplus) or negative (deficit) annualized goal
 
 ---
 
-If you want, I can drop this into a `README.md` file with a minimal solution scaffold and a couple of ready-to-run commands.
+<img width="3515" height="315" alt="image" src="https://github.com/user-attachments/assets/33936ee7-7573-4515-863f-89545ac7a6de" />
+
