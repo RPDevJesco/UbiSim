@@ -1,14 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-
-namespace EnhancedUbiSim
+﻿namespace EnhancedUbiSim
 {
-    // ==========================================
-    // ENHANCED DATA STRUCTURES FOR REALISM
-    // ==========================================
-    
     public record TaxBracket(decimal Threshold, decimal Rate);
     public record TaxPolicy(
         List<TaxBracket> Brackets,
@@ -138,10 +129,6 @@ namespace EnhancedUbiSim
         decimal ReentryProbability      
     );
 
-    // ==========================================
-    // ENHANCED RESULT TRACKING
-    // ==========================================
-
     public class EnhancedMonthResult
     {
         public int MonthIndex { get; set; }
@@ -199,10 +186,6 @@ namespace EnhancedUbiSim
         public decimal CreditGrowth { get; set; }
     }
 
-    // ==========================================
-    // MAIN SIMULATION CLASS
-    // ==========================================
-
     class EnhancedProgram
     {
         static bool stochastic = false;
@@ -212,7 +195,6 @@ namespace EnhancedUbiSim
 
         static void Main(string[] args)
         {
-            // Parse command line arguments
             decimal cliUbi = GetArg(args, "--ubi", decimal.MinValue);
             int months = (int)GetArg(args, "--months", 12m);
             decimal targetAnnualNet = GetArg(args, "--target-net", 0m);
@@ -223,8 +205,7 @@ namespace EnhancedUbiSim
             bool advancedMode = GetArgBool(args, "--advanced", true);
             
             Rng = new Random(rngSeed);
-
-            // Initialize enhanced economy
+            
             var (cohorts, labor, business, financial, trade, regional, government, econ, emig) = 
                 BuildEnhancedEconomy();
 
@@ -247,21 +228,15 @@ namespace EnhancedUbiSim
 
             if (cliUbi != decimal.MinValue)
             {
-                // Single scenario run
                 RunSingleScenario(cliUbi, months, targetAnnualNet, stochastic, monthlyCsv, summaryCsv,
                     cohorts, labor, business, financial, trade, regional, government, econ, emig, baseTax, advancedMode);
             }
             else
             {
-                // Multiple scenario suite
                 RunScenarioSuite(months, stochastic, cohorts, labor, business, financial, trade, regional, 
                     government, econ, emig, baseTax, advancedMode);
             }
         }
-
-        // ==========================================
-        // SCENARIO EXECUTION
-        // ==========================================
 
         static void RunSingleScenario(
             decimal ubiAmount, int months, decimal targetNet, bool stochastic,
@@ -326,7 +301,7 @@ namespace EnhancedUbiSim
                 Console.WriteLine($"Running: {scenario.Name}");
                 Console.WriteLine($"{'='*50}");
 
-                Rng = new Random(42); // Reset for consistency
+                Rng = new Random(42);
 
                 var cohorts = CloneCohorts(baseCohorts);
                 var ubi = new UbiProgram(scenario.Ubi, 200m, false, 0m, 0m);
@@ -352,10 +327,6 @@ namespace EnhancedUbiSim
             WriteEnhancedSummaryCsv(summaries, summaryPath);
             Console.WriteLine($"\nAll results written to enhanced_out/ directory");
         }
-
-        // ==========================================
-        // ENHANCED TAX CALIBRATION WITH STABILITY
-        // ==========================================
 
         public record ConvergenceInfo(int rounds, decimal finalGap, decimal pitScale, bool converged);
 
@@ -421,7 +392,7 @@ namespace EnhancedUbiSim
                     }
 
                     // PHASE 3: If gap is still large, optimize other instruments
-                    if (gap > CONVERGENCE_TOLERANCE * 5m && roundsCompleted <= 10) // Only first 10 rounds
+                    if (gap > CONVERGENCE_TOLERANCE * 5m && roundsCompleted <= 10)
                     {
                         Console.WriteLine("Gap large, optimizing PIT scale...");
                         pitScale = SearchPitScaleWithStabilityBias(months, cohorts, ubi, baseTax, corpRate, vatRate,
@@ -503,9 +474,6 @@ namespace EnhancedUbiSim
             GovernmentSector government, EconomyParams econ, EmigrationParams emig,
             decimal targetNet, bool stochastic, bool advancedMode, decimal minRate, decimal maxRate)
         {
-            //Console.WriteLine($"[DEBUG] Searching corporate rate in range [{minRate:P1}, {maxRate:P1}] for target ${targetNet:N0}");
-            
-            // FIXED: Much wider and more realistic search range
             var adjustedMinRate = 0.05m; // 5% minimum (very low)
             var adjustedMaxRate = 0.50m; // 50% maximum (very high but possible)
             
@@ -513,7 +481,6 @@ namespace EnhancedUbiSim
             decimal bestRate = adjustedMinRate;
             decimal bestGap = decimal.MaxValue;
             
-            // Test 10 points across full range
             for (int i = 0; i <= 10; i++)
             {
                 decimal testRate = adjustedMinRate + (adjustedMaxRate - adjustedMinRate) * i / 10m;
@@ -525,13 +492,10 @@ namespace EnhancedUbiSim
                     var netResult = CalculateNetFiscalPosition(results);
                     var gap = Math.Abs(netResult - targetNet);
                     
-                    //Console.WriteLine($"[DEBUG] Grid test {testRate:P1} -> Net ${netResult:N0}, Gap ${gap:N0}");
-                    
                     if (gap < bestGap && Math.Abs(netResult) < 50_000_000_000_000m) // $50T sanity check
                     {
                         bestGap = gap;
                         bestRate = testRate;
-                        //Console.WriteLine($"[DEBUG] *** NEW BEST: {testRate:P1} with gap ${gap:N0} ***");
                     }
                 }
                 catch (Exception ex)
@@ -545,9 +509,7 @@ namespace EnhancedUbiSim
             var lo = Math.Max(adjustedMinRate, bestRate - searchRadius);
             var hi = Math.Min(adjustedMaxRate, bestRate + searchRadius);
             
-            //Console.WriteLine($"[DEBUG] Fine search around {bestRate:P1} in [{lo:P1}, {hi:P1}]");
-            
-            for (int i = 0; i < 100; i++) // More iterations
+            for (int i = 0; i < 100; i++)
             {
                 decimal mid = (lo + hi) / 2m;
                 
@@ -564,12 +526,10 @@ namespace EnhancedUbiSim
                     {
                         bestGap = gap;
                         bestRate = mid;
-                        //Console.WriteLine($"[DEBUG] Binary improvement {mid:P1}: Gap ${gap:N0}");
                     }
                     
                     if (gap <= CONVERGENCE_TOLERANCE)
                     {
-                        //Console.WriteLine($"[DEBUG] *** CONVERGED at {mid:P1} ***");
                         return mid;
                     }
                     
@@ -578,7 +538,6 @@ namespace EnhancedUbiSim
                 }
                 catch (Exception ex)
                 {
-                    //Console.WriteLine($"[DEBUG] Binary error at {mid:P1}: {ex.Message}");
                     if (mid > bestRate) hi = (hi + bestRate) / 2m;
                     else lo = (lo + bestRate) / 2m;
                 }
@@ -586,7 +545,6 @@ namespace EnhancedUbiSim
                 if (hi - lo < 0.005m) break; // 0.5% precision
             }
             
-            //Console.WriteLine($"[DEBUG] Final corp rate: {bestRate:P1}, Gap ${bestGap:N0}");
             return bestRate;
         }
 
@@ -648,8 +606,6 @@ namespace EnhancedUbiSim
         {
             decimal bestRate = (minValue + maxValue) / 2m;
             decimal bestGap = decimal.MaxValue;
-            
-            ////Console.WriteLine($"[DEBUG] Starting search in [{minValue:P1}, {maxValue:P1}] for target ${targetNet:N0}");
 
             // PHASE 1: Grid search to find best starting point
             var gridPoints = 20;
@@ -665,24 +621,17 @@ namespace EnhancedUbiSim
                     {
                         bestGap = testGap;
                         bestRate = testRate;
-                        ////Console.WriteLine($"[DEBUG] Grid point {testRate:P1}: Gap=${testGap:N0} (NEW BEST)");
-                    }
-                    else
-                    {
-                        ////Console.WriteLine($"[DEBUG] Grid point {testRate:P1}: Gap=${testGap:N0}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    ////Console.WriteLine($"[DEBUG] Grid point {testRate:P1}: ERROR - {ex.Message}");
+                    //Console.WriteLine($"[DEBUG] Grid point {testRate:P1}: ERROR - {ex.Message}");
                 }
             }
 
             // PHASE 2: Fine-tune around best point with binary search
             decimal lo = Math.Max(minValue, bestRate - (maxValue - minValue) * 0.1m);
             decimal hi = Math.Min(maxValue, bestRate + (maxValue - minValue) * 0.1m);
-            
-            ////Console.WriteLine($"[DEBUG] Fine-tuning around {bestRate:P1} in range [{lo:P1}, {hi:P1}]");
 
             for (int i = 0; i < maxIterations; i++)
             {
@@ -694,7 +643,6 @@ namespace EnhancedUbiSim
                     
                     if (Math.Abs(actualNet) > 20_000_000_000_000m)
                     {
-                        ////Console.WriteLine($"[DEBUG] Unstable at {mid:P1}: ${actualNet:N0}");
                         if (mid > bestRate) hi = (hi + bestRate) / 2m;
                         else lo = (lo + bestRate) / 2m;
                         continue;
@@ -706,12 +654,10 @@ namespace EnhancedUbiSim
                     {
                         bestGap = gap;
                         bestRate = mid;
-                        ////Console.WriteLine($"[DEBUG] Binary improvement {mid:P1}: Gap=${gap:N0} (NEW BEST)");
                     }
 
                     if (gap <= CONVERGENCE_TOLERANCE) 
                     {
-                        ////Console.WriteLine($"[DEBUG] *** CONVERGED at {mid:P1} with gap ${gap:N0} ***");
                         bestRate = mid;
                         break;
                     }
@@ -721,23 +667,16 @@ namespace EnhancedUbiSim
                 }
                 catch (Exception ex)
                 {
-                    ////Console.WriteLine($"[DEBUG] Binary error at {mid:P1}: {ex.Message}");
                     if (mid > bestRate) hi = (hi + bestRate) / 2m;
                     else lo = (lo + bestRate) / 2m;
                 }
 
                 if (hi - lo < 0.001m) break; // 0.1% precision
             }
-
-            ////Console.WriteLine($"[DEBUG] Final result: Rate={bestRate:P1}, Gap=${bestGap:N0}");
+            
             return bestRate;
         }
-
-
-        // ==========================================
-        // ENHANCED SIMULATION ENGINE - FIXED
-        // ==========================================
-
+        
         static List<EnhancedMonthResult> RunEnhancedSimulation(
             int months,
             List<PopulationCohort> cohorts,
@@ -756,7 +695,6 @@ namespace EnhancedUbiSim
         {
             var results = new List<EnhancedMonthResult>();
             
-            // Initialize state variables with proper bounds
             decimal priceLevel = 1.00m;
             decimal unemploymentRate = labor.UnemploymentRate;
             decimal interestRate = financial.BaseInterestRate;
@@ -771,24 +709,20 @@ namespace EnhancedUbiSim
 
             for (int m = 1; m <= months; m++)
             {
-                // ===== LABOR MARKET DYNAMICS - FIXED =====
                 var (newUnemploymentRate, wageGrowth, laborSupply) = UpdateLaborMarket(
                     cohorts, cohortPopulations, ubi, tax, unemploymentRate, labor, 
                     priceLevel, m, advancedMode);
-                unemploymentRate = Clamp(newUnemploymentRate, 0.02m, 0.15m); // Reasonable bounds
-
-                // ===== BUSINESS SECTOR DYNAMICS - FIXED =====
+                unemploymentRate = Clamp(newUnemploymentRate, 0.02m, 0.15m);
+                
                 var (newBusiness, totalInvestment, totalProfit, corporateTax) = UpdateBusinessSector(
                     currentBusiness, unemploymentRate, interestRate, priceLevel, 
                     financial, tax, ubi, stochastic, advancedMode);
                 currentBusiness = newBusiness;
-
-                // ===== INDIVIDUAL CONSUMPTION & TAXES - FIXED =====
+                
                 var (totalConsumption, taxData, ubiOutlays) = CalculateIndividualResponses(
                     cohorts, cohortPopulations, ubi, tax, wageGrowth, unemploymentRate,
                     assetPriceIndex, priceLevel, m, advancedMode);
-
-                // ===== AGGREGATE DEMAND & SUPPLY - WITH BOUNDS =====
+                
                 var netExports = CalculateNetExports(trade, priceLevel, exchangeRate);
                 netExports = Clamp(netExports, -200_000_000_000m, 200_000_000_000m); 
                 
@@ -804,32 +738,27 @@ namespace EnhancedUbiSim
                 var baselineCapacityGDP = econ.BaselineMonthlyGDP * totalCapacity;
                 baselineCapacityGDP = Math.Max(1m, baselineCapacityGDP); 
                 var outputGap = Clamp((realGDP / baselineCapacityGDP) - 1m, -0.3m, 0.3m); // Tighter output gap
-
-                // ===== PRICE DYNAMICS - FIXED TO PREVENT HYPERINFLATION =====
+                
                 var inflation = CalculateInflation(outputGap, priceLevel, econ, cumulativeInflation, m);
                 inflation = Clamp(inflation, -0.01m, 0.02m); // Much tighter inflation bounds!
                 priceLevel = Math.Max(0.8m, priceLevel * (1m + inflation));
-                priceLevel = Clamp(priceLevel, 0.8m, 1.5m); // Prevent hyperinflation!
+                priceLevel = Clamp(priceLevel, 0.8m, 1.5m); // Prevent hyperinflation. Probably not a good idea, but, fuck it
                 cumulativeInflation *= (1m + inflation);
-
-                // ===== FINANCIAL MARKET - FIXED TAYLOR RULE =====
+                
                 var (newInterestRate, newAssetPrices, creditGrowth) = UpdateFinancialMarkets(
                     interestRate, inflation, unemploymentRate, outputGap, assetPriceIndex, 
                     financial, econ, cumulativeInflation, advancedMode); // Pass cumulative inflation
                 interestRate = Clamp(newInterestRate, 0.005m, 0.08m); // Responsive interest rates
                 assetPriceIndex = Clamp(newAssetPrices, 0.7m, 1.5m);
                 creditGrowth = Clamp(creditGrowth, -0.1m, 0.2m);
-
-                // ===== INTERNATIONAL TRADE =====
+                
                 var (exports, imports, newExchangeRate) = UpdateInternationalTrade(
                     trade, priceLevel, nominalGDP, exchangeRate, advancedMode);
                 exchangeRate = newExchangeRate;
-
-                // ===== MIGRATION & EMIGRATION - FIXED =====
+                
                 var (emigrants, immigrants) = UpdateMigrationFlows(
                     cohorts, cohortPopulations, tax, ubi, unemploymentRate, emig, stochastic, advancedMode);
-
-                // ===== GOVERNMENT BUDGET - WITH CORPORATE TAX =====
+                
                 var totalTaxRevenue = taxData.personalIncome + taxData.vat + corporateTax + taxData.capitalGains + taxData.property + taxData.wealth;
                 totalTaxRevenue = Clamp(totalTaxRevenue, 0m, 1_000_000_000_000m); 
                 
@@ -838,15 +767,13 @@ namespace EnhancedUbiSim
                 
                 governmentDebt -= netGovernmentPosition; 
                 governmentDebt = Clamp(governmentDebt, 0m, 30_000_000_000_000m); 
-
-                // ===== REGIONAL DYNAMICS =====
+                
                 if (advancedMode)
                 {
                     regionalState = UpdateRegionalEconomics(regionalState, unemploymentRate, 
                         cohortPopulations, priceLevel);
                 }
-
-                // Record results
+                
                 var monthResult = new EnhancedMonthResult
                 {
                     MonthIndex = m,
@@ -858,7 +785,7 @@ namespace EnhancedUbiSim
                     ExchangeRate = exchangeRate,
                     PersonalIncomeTax = taxData.personalIncome,
                     VatRevenue = taxData.vat,
-                    CorpTax = corporateTax, // Now properly included!
+                    CorpTax = corporateTax,
                     CapitalGainsTax = taxData.capitalGains,
                     PropertyTax = taxData.property,
                     UbiOutlays = ubiOutlays,
@@ -894,10 +821,6 @@ namespace EnhancedUbiSim
             return results;
         }
 
-        // ==========================================
-        // INDIVIDUAL BEHAVIOR MODELING - UNCHANGED
-        // ==========================================
-
         static (decimal totalConsumption, 
             (decimal personalIncome, decimal vat, decimal capitalGains, decimal property, decimal wealth)
             totalTaxes,
@@ -930,43 +853,35 @@ namespace EnhancedUbiSim
             {
                 var population = populations[cohort.Name];
                 if (population <= 0) continue;
-
-                // Employment and income with safety bounds
+                
                 var employmentRate = Math.Max(0.5m, 1m - unemploymentRate * (2m - cohort.EducationLevel));
                 var activeWorkers = (int)(population * cohort.WorkParticipationRate * employmentRate);
                 
-                // Calculate work disincentive from UBI with bounds
                 var workDisincentive = CalculateWorkDisincentive(cohort, ubi, tax, advancedMode);
-                workDisincentive = Clamp(workDisincentive, 0m, 0.30m); // Max 30% work reduction (more realistic)
+                workDisincentive = Clamp(workDisincentive, 0m, 0.30m); // Max 30% work reduction, probably more realistic?
                 
                 var adjustedIncome = cohort.AvgAnnualIncome * (1m + Clamp(wageGrowth, -0.2m, 0.5m)) * (1m - workDisincentive);
                 adjustedIncome = Clamp(adjustedIncome, 5000m, MAX_INCOME); 
                 
                 var monthlyEarnedIncome = adjustedIncome / 12m;
-
-                // UBI calculation 
+                
                 var monthlyUbi = CalculateUbiPayment(cohort, ubi, adjustedIncome);
                 monthlyUbi = Clamp(monthlyUbi, 0m, 10_000m); 
                 
-                // Tax calculations with bounds
                 var personalIncomeTax = CalculatePersonalIncomeTax(adjustedIncome, tax.Brackets) / 12m;
                 personalIncomeTax = Clamp(personalIncomeTax, 0m, MAX_TAX);
                 
-                // After-tax income and consumption
                 var afterTaxIncome = monthlyEarnedIncome - personalIncomeTax + monthlyUbi;
                 afterTaxIncome = Math.Max(0m, afterTaxIncome);
                 
-                // Enhanced consumption model with bounds
                 var consumption = CalculateEnhancedConsumption(
                     cohort, afterTaxIncome, monthlyEarnedIncome, monthlyUbi, 
                     priceLevel, assetPriceIndex, unemploymentRate, advancedMode);
                 consumption = Clamp(consumption, 0m, MAX_CONSUMPTION);
-
-                // VAT on consumption
+                
                 var vat = consumption * Clamp(tax.VatRate, 0m, 0.3m); 
                 vat = Clamp(vat, 0m, MAX_TAX);
-
-                // Capital gains and property taxes 
+                
                 var capitalGains = CalculateCapitalGainsTax(cohort, assetPriceIndex, tax.CapitalGainsRate, month);
                 capitalGains = Clamp(capitalGains, 0m, MAX_TAX);
                 
@@ -977,12 +892,10 @@ namespace EnhancedUbiSim
                 var wealthTax = (cohort.AvgAnnualIncome > 1_000_000m) ?
                     ((adjustedIncome - 1_000_000m) * tax.WealthTaxRate / 12m) : 0m;
                 wealthTax = Clamp(wealthTax, 0m, MAX_TAX);
-
-                // Multiply by population, add to total
+                
                 var wealthContrib = SafeMultiply(wealthTax, population, MAX_TOTAL_VALUE);
                 totalWealthTax = SafeAdd(totalWealthTax, wealthContrib, MAX_TOTAL_VALUE);
-
-                // Aggregate with overflow protection
+                
                 var consumptionContrib = SafeMultiply(consumption, activeWorkers, MAX_TOTAL_VALUE);
                 var pitContrib = SafeMultiply(personalIncomeTax, activeWorkers, MAX_TOTAL_VALUE);
                 var vatContrib = SafeMultiply(vat, activeWorkers, MAX_TOTAL_VALUE);
@@ -1002,8 +915,7 @@ namespace EnhancedUbiSim
                 (totalPersonalIncomeTax, totalVat, totalCapitalGains, totalProperty, totalWealthTax),
                 totalUbiOutlays);
         }
-
-        // Safe arithmetic operations to prevent overflow
+        
         static decimal SafeMultiply(decimal a, decimal b, decimal maxValue)
         {
             if (a == 0m || b == 0m) return 0m;
@@ -1024,22 +936,20 @@ namespace EnhancedUbiSim
             if (!advancedMode) return 0m;
 
             var monthlyIncome = Math.Max(1000m, cohort.AvgAnnualIncome / 12m); 
-            var ubiAmount = Math.Min(3000m, ubi.MonthlyUbiPerAdult); // More realistic max
+            var ubiAmount = Math.Min(3000m, ubi.MonthlyUbiPerAdult);
             
-            // UBI creates work disincentive, but not extreme
+            // UBI creates work disincentive, but not extreme (supposedly)
             var incomeRatio = ubiAmount / monthlyIncome;
-            var baseDisincentive = Math.Min(0.10m, incomeRatio * 0.15m); // Smaller effect
+            var baseDisincentive = Math.Min(0.10m, incomeRatio * 0.15m);
             
-            // Adjust for individual characteristics (smaller effects)
             if (cohort.AgeMedian > 55m) baseDisincentive *= 1.2m; 
             if (cohort.EducationLevel < 0.5m) baseDisincentive *= 1.1m; 
             
-            // Tax system interaction (smaller effect)
             var effectiveTaxRate = CalculateEffectiveTaxRate(cohort.AvgAnnualIncome, tax.Brackets);
             effectiveTaxRate = Clamp(effectiveTaxRate, 0m, 0.6m); 
-            var taxDisincentive = effectiveTaxRate * 0.05m; // Smaller tax response
+            var taxDisincentive = effectiveTaxRate * 0.05m;
             
-            return Clamp(baseDisincentive + taxDisincentive, 0m, 0.25m); // Max 25% work reduction
+            return Clamp(baseDisincentive + taxDisincentive, 0m, 0.25m);
         }
 
         static decimal CalculateUbiPayment(PopulationCohort cohort, UbiProgram ubi, decimal annualIncome)
@@ -1048,7 +958,7 @@ namespace EnhancedUbiSim
             
             if (!ubi.MeansTestingEnabled) return baseUbi;
             
-            // Phase out UBI for high earners
+            // Phase out UBI for high earners (realistic)
             if (annualIncome <= ubi.PhaseOutThreshold) return baseUbi;
             
             var phaseOutAmount = (annualIncome - ubi.PhaseOutThreshold) * ubi.PhaseOutRate / 12m;
@@ -1061,30 +971,25 @@ namespace EnhancedUbiSim
         {
             if (!advancedMode)
             {
-                // Simple model: standard MPC
                 return Math.Max(0m, afterTaxIncome * (1m - cohort.SavingsRate));
             }
-
-            // Enhanced model with different MPCs for different income sources
+            
             var earnedMPC = 1m - cohort.SavingsRate;
-            var ubiMPC = Math.Min(1.0m, cohort.UbiSpendPropensity); // Cap at 100%
+            var ubiMPC = Math.Min(1.0m, cohort.UbiSpendPropensity);
             
             var baseConsumption = earnedIncome * earnedMPC + ubiIncome * ubiMPC;
             
-            // Wealth effects from asset prices (smaller effect)
-            var wealthEffect = (assetPriceIndex - 1m) * 0.01m * cohort.AvgAnnualIncome / 12m; // Smaller effect
+            var wealthEffect = (assetPriceIndex - 1m) * 0.01m * cohort.AvgAnnualIncome / 12m;
             if (cohort.AvgAnnualIncome > 100_000m) wealthEffect *= 1.5m; 
             
-            // Precautionary savings during high unemployment (smaller effect)
-            var precautionaryAdjustment = -unemploymentRate * 0.2m * afterTaxIncome; // Smaller effect
+            var precautionaryAdjustment = -unemploymentRate * 0.2m * afterTaxIncome;
             
-            // Price level effects (smaller elasticity)
-            var priceElasticity = cohort.AvgAnnualIncome < 50_000m ? -0.1m : -0.2m; // Smaller elasticity
+            var priceElasticity = cohort.AvgAnnualIncome < 50_000m ? -0.1m : -0.2m;
             var priceAdjustment = 1m + priceElasticity * (priceLevel - 1m);
             
             var adjustedConsumption = (baseConsumption + wealthEffect + precautionaryAdjustment) * priceAdjustment;
             
-            return Math.Max(afterTaxIncome * 0.3m, adjustedConsumption); // Minimum consumption floor
+            return Math.Max(afterTaxIncome * 0.3m, adjustedConsumption);
         }
 
         static decimal CalculateCapitalGainsTax(PopulationCohort cohort, decimal assetPriceIndex, 
@@ -1094,7 +999,7 @@ namespace EnhancedUbiSim
             if (cohort.AvgAnnualIncome < 75_000m) return 0m;
             
             // Assume asset appreciation translates to realized gains 
-            var assetHoldings = (cohort.AvgAnnualIncome - 50_000m) * 1.5m; // Smaller holdings
+            var assetHoldings = (cohort.AvgAnnualIncome - 50_000m) * 1.5m; 
             var monthlyGains = assetHoldings * Math.Max(0m, assetPriceIndex - 1m) / 12m;
             
             return monthlyGains * taxRate;
@@ -1103,15 +1008,11 @@ namespace EnhancedUbiSim
         static decimal CalculatePropertyTax(PopulationCohort cohort, decimal taxRate)
         {
             // Property values roughly correlated with income
-            var estimatedPropertyValue = Math.Min(1_000_000m, cohort.AvgAnnualIncome * 2.5m); // Smaller multiplier
+            var estimatedPropertyValue = Math.Min(1_000_000m, cohort.AvgAnnualIncome * 2.5m);
             if (cohort.AvgAnnualIncome < 25_000m) estimatedPropertyValue *= 0.3m; 
             
             return estimatedPropertyValue * taxRate / 12m;
         }
-
-        // ==========================================
-        // LABOR MARKET DYNAMICS - FIXED
-        // ==========================================
 
         static (decimal unemploymentRate, decimal wageGrowth, decimal laborSupply) UpdateLaborMarket(
             List<PopulationCohort> cohorts,
@@ -1125,42 +1026,36 @@ namespace EnhancedUbiSim
             bool advancedMode)
         {
             const decimal trendProductivity = 0.0015m; // ~0.15%/month ≈ 1.8%/yr
-            // FIXED: Calculate UBI effect on unemployment properly
+
             var ubiLaborSupplyEffect = CalculateUbiLaborSupplyEffect(cohorts, populations, ubi, advancedMode);
             var ubiEffect = 0.30m * ubiLaborSupplyEffect;    
             if (ubi.MonthlyUbiPerAdult > 0m)
             {
                 // UBI-to-median-income ratio affects labor supply
-                var medianIncome = cohorts.OrderBy(c => c.AvgAnnualIncome).ElementAt(3).AvgAnnualIncome; // Middle cohort
+                var medianIncome = cohorts.OrderBy(c => c.AvgAnnualIncome).ElementAt(3).AvgAnnualIncome;
                 var ubiToIncomeRatio = (ubi.MonthlyUbiPerAdult * 12m) / medianIncome;
                 ubiEffect = ubiToIncomeRatio * 0.03m; // 3% unemployment increase per 100% UBI-to-income ratio
-                ubiEffect = Clamp(ubiEffect, 0m, 0.04m); // Max 4% unemployment increase
+                ubiEffect = Clamp(ubiEffect, 0m, 0.04m); // Max 4% unemployment increase (probably shouldn't have this capped)
             }
             
             var uStar = Clamp(
-                labor.UnemploymentRate                           // your baseline (e.g., 4.5%)
-                + 0.5m * labor.SkillMismatchFactor                 // a little higher if mismatch
-                - 0.05m * labor.UnionCoverage,                     // unions can compress u*
+                labor.UnemploymentRate                           
+                + 0.5m * labor.SkillMismatchFactor                
+                - 0.05m * labor.UnionCoverage,                     
                 0.035m, 0.065m);
                
             var effectiveTaxRate = CalculateAvgEffectiveTaxRate(cohorts, populations, tax);
-
-            // Tax effect on unemployment
+            
             var avgTaxRate = CalculateAvgEffectiveTaxRate(cohorts, populations, tax);
             var taxGap = avgTaxRate - 0.25m;
             var taxEffect = 0.05m * taxGap;
             taxEffect = Clamp(taxEffect, -0.002m, 0.010m);
-
-            // Target unemployment rate
-            var baseUnemploymentRate = labor.UnemploymentRate; // 4.5%
+            
+            var baseUnemploymentRate = labor.UnemploymentRate; 
             var targetUnemploymentRate = Clamp(uStar + ubiEffect + taxEffect, 0.035m, 0.090m);
-            //var targetUnemploymentRate = baseUnemploymentRate + ubiEffect + taxEffect;
             targetUnemploymentRate = Clamp(targetUnemploymentRate, 0.025m, 0.12m); // 2.5% to 12%
-
-            // FIXED: Gradual adjustment (was not working before)
-            //var adjustmentSpeed = 0.15m; // 15% adjustment per month
-            //var newUnemploymentRate = currentUnemploymentRate * (1m - adjustmentSpeed) + targetUnemploymentRate * adjustmentSpeed;
-            var adjustmentSpeed = 0.04m; // not 0.15
+            
+            var adjustmentSpeed = 0.04m;
             var newUnemploymentRate =
                 currentUnemploymentRate + adjustmentSpeed * (targetUnemploymentRate - currentUnemploymentRate);
             // Ensure unemployment actually changes
@@ -1169,21 +1064,15 @@ namespace EnhancedUbiSim
                 newUnemploymentRate = currentUnemploymentRate + 
                     Math.Sign(targetUnemploymentRate - currentUnemploymentRate) * 0.001m;
             }
-
-            // Wage growth calculation
+            
             var unemploymentGap = newUnemploymentRate - uStar;
-            //var unemploymentGap = newUnemploymentRate - baseUnemploymentRate;
-            // Final wage growth = trend productivity + tightness effect, lightly bounded
             var wagePhillips = -0.05m * unemploymentGap;
             var wageGrowth = Clamp(trendProductivity + wagePhillips, -0.003m, 0.006m); // [-0.3%, +0.6%]/mo
-            //var wageGrowth = -unemploymentGap * 0.5m; // Phillips curve relationship
-            wageGrowth = Clamp(wageGrowth, -0.03m, 0.04m);
+            wageGrowth = Clamp(wageGrowth, -0.03m, 0.04m); // Phillips curve relationship
 
             var totalLaborForce = populations.Values.Sum() * 0.65m;
             var adjustedLaborSupply = totalLaborForce * (1m - ubiEffect * 0.5m);
-
-            ////////Console.WriteLine($"[DEBUG] Month {month}: UBI=${ubi.MonthlyUbiPerAdult}, " + $"UbiEffect={ubiEffect:P2}, TaxEffect={taxEffect:P2}, " + $"Target={targetUnemploymentRate:P2}, New={newUnemploymentRate:P2}");
-
+            
             return (newUnemploymentRate, wageGrowth, adjustedLaborSupply);
         }
         
@@ -1201,9 +1090,8 @@ namespace EnhancedUbiSim
                 var ubiToIncomeRatio = (ubi.MonthlyUbiPerAdult * 12m) / Math.Max(10000m, cohort.AvgAnnualIncome);
                 
                 // Stronger effect for lower-income groups, but more realistic
-                var cohortEffect = Math.Min(0.08m, ubiToIncomeRatio * 0.15m); // Smaller max effect
+                var cohortEffect = Math.Min(0.08m, ubiToIncomeRatio * 0.15m);
                 
-                // Adjust for demographics (smaller effects)
                 if (cohort.AgeMedian > 55m) cohortEffect *= 1.3m; 
                 if (cohort.AgeMedian < 30m) cohortEffect *= 0.8m; 
                 
@@ -1213,10 +1101,6 @@ namespace EnhancedUbiSim
             
             return totalPopulation > 0 ? weightedEffect / totalPopulation : 0m;
         }
-
-        // ==========================================
-        // BUSINESS SECTOR DYNAMICS - FIXED TO INCLUDE CORPORATE TAX
-        // ==========================================
 
         static (BusinessEcosystem newBusiness, decimal totalInvestment, decimal totalProfit, decimal corporateTax) UpdateBusinessSector(
             BusinessEcosystem currentBusiness,
@@ -1234,24 +1118,19 @@ namespace EnhancedUbiSim
             decimal totalProfit = 0m;
             decimal corporateTax = 0m;
 
-            //Console.WriteLine($"[DEBUG] Business Sector: Corp Rate={tax.CorpTaxRate:P1}, Unemployment={unemploymentRate:P1}");
-
             foreach (var (category, firmSize) in currentBusiness.FirmSizes)
             {
-                // FIXED: Much more realistic profit calculations
                 var baseMargin = CalculateBaseProfitMargin(category, unemploymentRate, priceLevel);
                 baseMargin = Clamp(baseMargin, 0.03m, 0.25m);
-
-                // FIXED: Enhanced scale factors to match US economy
+                
                 var scaleFactor = category switch
                 {
-                    "Small" => 6.0m,    // Small businesses scaled up significantly
-                    "Medium" => 12.0m,  // Medium businesses scaled up significantly  
-                    "Large" => 20.0m,   // Large businesses scaled up significantly
+                    "Small" => 6.0m,    
+                    "Medium" => 12.0m,  
+                    "Large" => 20.0m,   
                     _ => 1.0m
                 };
-
-                // FIXED: Calculate realistic revenue streams
+                
                 var baseAnnualRevenue = (decimal)firmSize.Count * firmSize.AvgRevenue;
                 var scaledAnnualRevenue = baseAnnualRevenue * scaleFactor;
                 var monthlyRevenue = scaledAnnualRevenue / 12m;
@@ -1268,22 +1147,19 @@ namespace EnhancedUbiSim
 
                 var profit = monthlyRevenue * baseMargin;
                 profit = Clamp(profit, 0m, 1_000_000_000_000m); // $1T monthly profit cap
-
-                // FIXED: Corporate tax calculation with proper rates
+                
                 var firmCorporateTax = profit * tax.CorpTaxRate;
                 corporateTax += firmCorporateTax;
-
-                // After-tax profit for investment
+                
                 var afterTaxProfit = profit - firmCorporateTax;
                 var investmentRate = CalculateInvestmentRate(firmSize, afterTaxProfit, interestRate, financial);
                 var investment = afterTaxProfit * investmentRate;
-
-                // Firm dynamics (keep stable for now)
+                
                 var newCount = firmSize.Count;
                 var productivityGrowth = firmSize.ProductivityGrowth;
                 
                 if (ubi != null && ubi.MonthlyUbiPerAdult > 600m)
-                    productivityGrowth += 0.0008m; // UBI productivity boost
+                    productivityGrowth += 0.0008m; // UBI productivity boost (supposedly)
 
                 newFirmSizes[category] = firmSize with 
                 { 
@@ -1293,13 +1169,9 @@ namespace EnhancedUbiSim
 
                 totalInvestment += investment;
                 totalProfit += profit;
-
-                //Console.WriteLine($"[DEBUG] {category}: Firms={firmSize.Count:N0}, " +$"Revenue=${monthlyRevenue/1_000_000_000m:F1}B, " + $"Margin={baseMargin:P1}, Profit=${profit/1_000_000_000m:F1}B, " + $"CorpTax=${firmCorporateTax/1_000_000_000m:F1}B");
             }
 
             corporateTax = Clamp(corporateTax, 0m, 1_500_000_000_000m); // $1.5T monthly cap
-
-            //Console.WriteLine($"[DEBUG] TOTAL: Profit=${totalProfit/1_000_000_000m:F1}B, " +$"Corp Tax=${corporateTax/1_000_000_000m:F1}B " + $"(Rate: {tax.CorpTaxRate:P1})");
 
             var newBusiness = currentBusiness with { FirmSizes = newFirmSizes };
             return (newBusiness, totalInvestment, totalProfit, corporateTax);
@@ -1307,7 +1179,6 @@ namespace EnhancedUbiSim
         
         static decimal CalculateBaseProfitMargin(string firmCategory, decimal unemploymentRate, decimal priceLevel)
         {
-            // Base margins vary by firm size
             decimal baseMargin = firmCategory switch
             {
                 "Small" => 0.06m,      
@@ -1316,9 +1187,8 @@ namespace EnhancedUbiSim
                 _ => 0.08m
             };
             
-            // Economic conditions affect margins (smaller effects)
-            var unemploymentBonus = unemploymentRate * 0.2m; // Smaller wage effect
-            var priceEffect = (priceLevel - 1m) * 0.1m; // Smaller price effect
+            var unemploymentBonus = unemploymentRate * 0.2m;
+            var priceEffect = (priceLevel - 1m) * 0.1m;
             
             return Clamp(baseMargin + unemploymentBonus + priceEffect, 0.02m, 0.15m);
         }
@@ -1326,14 +1196,11 @@ namespace EnhancedUbiSim
         static decimal CalculateInvestmentRate(FirmSize firmSize, decimal profit, 
             decimal interestRate, FinancialSector financial)
         {
-            // Investment rate depends on profitability vs cost of capital
-            var baseInvestmentRate = 0.2m; // 20% of profits reinvested
+            var baseInvestmentRate = 0.2m;
             
-            // Interest rate sensitivity (smaller effect)
             var interestSensitivity = firmSize.Category == "Small" ? -1.0m : -0.5m;
             var interestEffect = interestSensitivity * (interestRate - financial.BaseInterestRate);
             
-            // Credit availability (smaller effect)
             var creditEffect = (financial.BankLendingCapacity - 1m) * 0.2m;
             
             return Clamp(baseInvestmentRate + interestEffect + creditEffect, 0.05m, 0.40m);
@@ -1344,28 +1211,22 @@ namespace EnhancedUbiSim
         {
             if (!advancedMode)
             {
-                // Simple model (smaller rates)
                 var simpleExitRate = profitMargin < 0.05m ? 0.005m : 0.002m;
                 var simpleEntryRate = profitMargin > 0.10m ? 0.004m : 0.001m;
                 return (simpleEntryRate, simpleExitRate);
             }
             
-            // Enhanced model with entry barriers and exit sensitivity (smaller effects)
             var baseExitRate = 0.001m;
             var profitExitEffect = profitMargin < 0.05m ? 
-                (0.05m - profitMargin) * firmSize.ExitSensitivity * 0.5m : 0m; // Smaller effect
+                (0.05m - profitMargin) * firmSize.ExitSensitivity * 0.5m : 0m;
             var calculatedExitRate = Clamp(baseExitRate + profitExitEffect, 0m, 0.02m);
             
             var baseEntryRate = 0.002m / Math.Max(1m, firmSize.EntryBarrier); 
-            var profitEntryEffect = Math.Max(0m, profitMargin - 0.08m) * 1m; // Smaller effect
+            var profitEntryEffect = Math.Max(0m, profitMargin - 0.08m) * 1m;
             var calculatedEntryRate = Clamp(baseEntryRate + profitEntryEffect, 0m, 0.01m);
             
             return (calculatedEntryRate, calculatedExitRate);
         }
-
-        // ==========================================
-        // FINANCIAL MARKETS - FIXED TAYLOR RULE
-        // ==========================================
 
         static (decimal newInterestRate, decimal newAssetPrices, decimal creditGrowth) UpdateFinancialMarkets(
             decimal currentRate, decimal inflation, decimal unemployment, decimal outputGap,
@@ -1378,16 +1239,13 @@ namespace EnhancedUbiSim
                 var newRate = currentRate * 0.8m + targetRate * 0.2m;
                 return (newRate, currentAssetPrices * 1.002m, 0.02m);
             }
-
-            // FIXED: Correct Taylor rule implementation
+            
             var inflationTarget = 0.02m; // 2% annual target
             var naturalRate = 0.025m; // 2.5% annual natural rate
             
-            // FIXED: Calculate proper annualized inflation from cumulative price level
             var annualizedInflation = (cumulativeInflation - 1m) * 4m; // Annualize from 3-year cumulative
             if (cumulativeInflation <= 1m) annualizedInflation = inflation * 12m; // Fallback to monthly * 12
             
-            // FIXED: Proper unemployment gap
             var unemploymentTarget = 0.045m; // 4.5% natural rate
             var unemploymentGap = unemployment - unemploymentTarget;
             
@@ -1397,21 +1255,15 @@ namespace EnhancedUbiSim
                             1.0m * (-unemploymentGap) +                          // Strong unemployment response  
                             0.5m * outputGap;                                    // Output gap response
             
-            // FIXED: Ensure rates are reasonable but responsive
             taylorRate = Clamp(taylorRate, 0.01m, 0.12m); // 1% to 12% annually (realistic bounds)
             
-            // FIXED: More responsive adjustment to reach target faster
             var rateAdjustmentSpeed = 0.3m; // 30% adjustment per month
             var monthlyTaylorRate = taylorRate / 12m; // Convert annual to monthly
             var newInterestRate = currentRate * (1m - rateAdjustmentSpeed) + 
                                  monthlyTaylorRate * rateAdjustmentSpeed;
             
-            // FIXED: Proper monthly bounds
             newInterestRate = Clamp(newInterestRate, 0.01m / 12m, 0.12m / 12m); // Monthly equivalent of 1-12% annual
-
-            //Console.WriteLine($"[DEBUG] Taylor Rule: CumInflation={cumulativeInflation:F3}, " +$"AnnualInflation={annualizedInflation:P1}, UnempGap={unemploymentGap:P1}, " + $"TaylorTarget={taylorRate:P1}, CurrentRate={currentRate*12m:P1}, " + $"NewRate={newInterestRate*12m:P1}");
-
-            // Asset prices and credit growth
+            
             var assetPriceGrowth = -0.6m * (newInterestRate - currentRate) * 12m + 0.3m * outputGap;
             if (stochastic) assetPriceGrowth += 0.01m * ((decimal)Rng.NextDouble() - 0.5m);
             var newAssetPrices = currentAssetPrices * (1m + Clamp(assetPriceGrowth, -0.03m, 0.03m));
@@ -1422,10 +1274,6 @@ namespace EnhancedUbiSim
 
             return (newInterestRate, newAssetPrices, creditGrowth);
         }
-
-        // ==========================================
-        // INTERNATIONAL TRADE
-        // ==========================================
 
         static decimal CalculateNetExports(TradeBalance trade, decimal priceLevel, decimal exchangeRate)
         {
@@ -1448,31 +1296,23 @@ namespace EnhancedUbiSim
                 return (trade.ExportLevel, trade.ImportLevel, currentExchangeRate);
             }
             
-            // Competitiveness effects
             var competitiveness = 1m / Math.Max(0.5m, priceLevel * currentExchangeRate); 
             var competitivenessChange = competitiveness - 1m;
             
-            // Export response to competitiveness
             var newExports = trade.ExportLevel * (1m + trade.ExportElasticity * competitivenessChange);
             newExports *= (1m + trade.ForeignDemandGrowth / 12m); 
             
-            // Import response to domestic demand and competitiveness  
             var domesticDemandEffect = (nominalGDP / 1_500_000_000_000m) - 1m; 
             var newImports = trade.ImportLevel * 
                            (1m + 0.5m * domesticDemandEffect) * 
                            (1m - trade.ImportElasticity * competitivenessChange); 
             
-            // Exchange rate adjustment (smaller effect)
             var tradeBalanceChange = newExports - newImports;
-            var exchangeRateAdjustment = tradeBalanceChange * 0.000000000005m; // Smaller effect
+            var exchangeRateAdjustment = tradeBalanceChange * 0.000000000005m;
             var newExchangeRate = currentExchangeRate * (1m + Clamp(exchangeRateAdjustment, -0.005m, 0.005m));
             
             return (newExports, newImports, newExchangeRate);
         }
-
-        // ==========================================
-        // MIGRATION AND EMIGRATION - FIXED TO SHOW EFFECTS
-        // ==========================================
 
         static (int emigrants, int immigrants) UpdateMigrationFlows(
             List<PopulationCohort> cohorts,
@@ -1491,8 +1331,7 @@ namespace EnhancedUbiSim
             {
                 var population = populations[cohort.Name];
                 if (population <= 0) continue;
-
-                // FIXED: More balanced emigration calculation
+                
                 var effectiveTaxRate = CalculateEffectiveTaxRate(cohort.AvgAnnualIncome, tax.Brackets);
                 
                 // Tax pressure increases emigration (especially for wealthy)
@@ -1514,38 +1353,30 @@ namespace EnhancedUbiSim
                     taxPressure = Math.Max(0m, effectiveTaxRate - 0.45m) * 0.5m; // Only extreme taxes
                 }
 
-                // FIXED: UBI reduces emigration but doesn't eliminate it
+                // UBI reduces emigration but doesn't eliminate it
                 var ubiAttraction = 0m;
                 if (ubi.MonthlyUbiPerAdult > 0m)
                 {
                     var ubiToIncomeRatio = (ubi.MonthlyUbiPerAdult * 12m) / Math.Max(25000m, cohort.AvgAnnualIncome);
-                    // FIXED: Cap UBI attraction at 60% reduction (not 80%)
                     ubiAttraction = Math.Min(0.6m, ubiToIncomeRatio * emig.UbiAttraction * 0.8m);
                 }
-
-                // Base emigration varies by mobility/income  
+                
                 var baseEmigrationProb = emig.BaseMonthlyProbByIncome * cohort.GeographicMobility;
                 
                 // Unemployment increases emigration desire
                 var unemploymentPressure = Math.Max(0m, unemploymentRate - 0.05m) * 0.3m; // Above 5% unemployment
-
-                // FIXED: Ensure minimum baseline emigration even with UBI
+                
                 var minEmigrationProb = baseEmigrationProb * 0.2m; // At least 20% of baseline always remains
                 
                 var emigrationProb = baseEmigrationProb + taxPressure + (effectiveTaxRate > 0.3m ? (effectiveTaxRate - 0.3m) * emig.TaxSensitivity : 0m) - ubiAttraction + unemploymentPressure; // Threshold 0.3 per IMF
                 
-                // Net emigration probability
-                //var emigrationProb = baseEmigrationProb + taxPressure * emig.TaxSensitivity - ubiAttraction + unemploymentPressure;
-                
-                // FIXED: Ensure emigration never goes below minimum baseline
                 emigrationProb = Math.Max(minEmigrationProb, emigrationProb);
                 emigrationProb = Clamp(emigrationProb, minEmigrationProb, 0.004m); // Max 0.4% monthly
 
-                // Immigration - UBI makes country more attractive
+                // Immigration - UBI makes country more attractive (supposedly)
                 var immigrationMultiplier = 1m + ubiAttraction * 0.4m; // Moderate immigration boost
                 var immigrationProb = baseEmigrationProb * 0.15m * immigrationMultiplier;
-
-                // Apply calculations
+                
                 int cohortEmigrants = stochastic ? 
                     BinomialSample(population, emigrationProb) : 
                     BinomialExpected(population, emigrationProb);
@@ -1553,27 +1384,15 @@ namespace EnhancedUbiSim
                 int cohortImmigrants = stochastic ?
                     BinomialSample((int)(population * 0.01m), immigrationProb) : 
                     BinomialExpected((int)(population * 0.01m), immigrationProb);
-
-                // Update population
+                
                 populations[cohort.Name] = Math.Max(100, population - cohortEmigrants + cohortImmigrants);
 
                 totalEmigrants += cohortEmigrants;
                 totalImmigrants += cohortImmigrants;
-
-                if (cohortEmigrants > 0 || cohortImmigrants > 0)
-                {
-                    //Console.WriteLine($"[DEBUG] {cohort.Name}: Tax={effectiveTaxRate:P1}, " +$"TaxPressure={taxPressure:P2}, UbiAttraction={ubiAttraction:P2}, " + $"MinEmig={minEmigrationProb:P3}, FinalEmig={emigrationProb:P3}, " + $"Emigrants={cohortEmigrants}, Immigrants={cohortImmigrants}");
-                }
             }
-
-            //Console.WriteLine($"[DEBUG] Total Migration: Emigrants={totalEmigrants}, Immigrants={totalImmigrants}");
 
             return (totalEmigrants, totalImmigrants);
         }
-
-        // ==========================================
-        // REGIONAL ECONOMICS
-        // ==========================================
 
         static RegionalEconomy UpdateRegionalEconomics(
             RegionalEconomy regional, decimal nationalUnemployment, 
@@ -1597,10 +1416,6 @@ namespace EnhancedUbiSim
             return regional with { Regions = newRegions };
         }
 
-        // ==========================================
-        // UTILITY FUNCTIONS - FIXED INFLATION CALCULATION
-        // ==========================================
-
         static decimal CalculateNetFiscalPosition(List<EnhancedMonthResult> results)
         {
             return results.Sum(r => r.TotalTaxes - r.UbiOutlays - r.OtherGovernmentSpending);
@@ -1609,30 +1424,22 @@ namespace EnhancedUbiSim
         static decimal CalculateInflation(decimal outputGap, decimal priceLevel, EconomyParams econ, 
             decimal cumulativeInflation, int month)
         {
-            // FIXED: Much more stable inflation calculation
             var phillipsCurveInflation = outputGap * 0.1m / 100m; // 0.1pp inflation per 1pp output gap (was 0.2pp)
-    
-            // FIXED: Less persistent inflation
+            
             var recentInflation = month > 1 ? (cumulativeInflation - 1m) / month : 0m; 
-            var persistentInflation = recentInflation * econ.InflationPersistence * 0.1m; // Much smaller persistence
-    
-            // Trend inflation
+            var persistentInflation = recentInflation * econ.InflationPersistence * 0.1m;
+            
             var trendInflation = 0.02m / 12m; // 2% annual target = ~0.167% monthly
-    
-            // FIXED: Much more stable total inflation
+            
             var totalInflation = trendInflation + phillipsCurveInflation + persistentInflation;
-    
-            // FIXED: Tighter bounds to prevent instability
+            
             var boundedInflation = Clamp(totalInflation, -0.005m, 0.005m); // Max ±0.5% monthly = ±6% annually
-    
-            //////Console.WriteLine($"[DEBUG] Inflation: OutputGap={outputGap:P2}, Phillips={phillipsCurveInflation:P3}, " +$"Persistent={persistentInflation:P3}, Total={boundedInflation:P3}");
     
             return boundedInflation;
         }
 
         static decimal CalculateTotalCapacity(BusinessEcosystem business)
         {
-            // Simplified capacity measure based on firm productivity
             return 1.0m; // For now, assume constant capacity
         }
 
@@ -1728,9 +1535,8 @@ namespace EnhancedUbiSim
         static int BinomialSample(int n, decimal p)
         {
             p = Math.Max(0m, Math.Min(0.999999m, p)); 
-            if (n <= 1000) // Reduced threshold for speed
+            if (n <= 1000)
             {
-                // Exact binomial sampling for small n
                 int x = 0;
                 double pd = (double)p;
                 for (int i = 0; i < n; i++) 
@@ -1738,7 +1544,6 @@ namespace EnhancedUbiSim
                 return x;
             }
             
-            // Normal approximation for large n
             double pp = (double)p;
             double mean = n * pp;
             double variance = mean * (1.0 - pp);
@@ -1755,10 +1560,6 @@ namespace EnhancedUbiSim
             double u2 = 1.0 - Rng.NextDouble();
             return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
         }
-
-        // ==========================================
-        // DATA SETUP AND CLONING - SMALLER VALUES
-        // ==========================================
 
         static (List<PopulationCohort> cohorts, LaborMarket labor, BusinessEcosystem business,
                 FinancialSector financial, TradeBalance trade, RegionalEconomy regional,
@@ -1781,7 +1582,7 @@ namespace EnhancedUbiSim
                 UnemploymentRate: 0.045m,
                 JobSearchFriction: 3.5m, 
                 SkillMismatchFactor: 0.02m,
-                WageStickinessDown: 0.7m, // Reduced stickiness for more responsiveness
+                WageStickinessDown: 0.7m,
                 WageStickinessUp: 0.5m,
                 UnionCoverage: 0.11m,
                 RegionalWageGap: new Dictionary<string, decimal>
@@ -1796,7 +1597,6 @@ namespace EnhancedUbiSim
             var business = new BusinessEcosystem(
                 FirmSizes: new Dictionary<string, FirmSize>
                 {
-                    // FIXED: Higher base revenues for realistic corporate tax
                     ["Small"] = new("Small", 6_000_000, 8m, 250_000m, 2.0m, 2.0m, 0.005m, 0.8m, 0.01m),    // $250K avg revenue
                     ["Medium"] = new("Medium", 300_000, 95m, 8_000_000m, 5.0m, 1.5m, 0.008m, 0.6m, 0.012m), // $8M avg revenue  
                     ["Large"] = new("Large", 8_000, 1200m, 200_000_000m, 15.0m, 1.0m, 0.012m, 0.4m, 0.015m)  // $200M avg revenue
@@ -1818,8 +1618,8 @@ namespace EnhancedUbiSim
             );
 
             var trade = new TradeBalance(
-                ExportLevel: 80_000_000_000m, // Reduced 
-                ImportLevel: 90_000_000_000m, // Reduced 
+                ExportLevel: 80_000_000_000m,
+                ImportLevel: 90_000_000_000m,
                 ExportElasticity: 1.0m,
                 ImportElasticity: 0.6m,
                 ExchangeRate: 1.0m,
@@ -1844,7 +1644,7 @@ namespace EnhancedUbiSim
             var government = new GovernmentSector(
                 BaselineSpending: 6_750_000_000_000m, // Realistic level 6.75 trilion based off FY 2024 figures 
                 UnemploymentBenefitRate: 0.45m,
-                SocialSecurityLevel: 80_000_000_000m, // Reduced 
+                SocialSecurityLevel: 80_000_000_000m,
                 PublicInvestmentRate: 0.03m,
                 DebtToGDPRatio: 1.20m,
                 AutomaticStabilizerStrength: 0.4m
@@ -1852,18 +1652,18 @@ namespace EnhancedUbiSim
 
             var econ = new EconomyParams(
                 BaselineMonthlyGDP: 1_500_000_000_000m, 
-                PriceAdjustment: 0.15m, // Reduced for stability
+                PriceAdjustment: 0.15m,
                 WageResponse: 0.03m,
                 ProductivityGrowth: 0.0015m, 
-                InflationPersistence: 0.5m, // Reduced for stability
+                InflationPersistence: 0.5m,
                 ExpectationAdaptation: 0.15m,
                 MonetaryPolicyRule: 1.5m 
             );
 
             var emig = new EmigrationParams(
-                BaseMonthlyProbByIncome: 0.0001m,    // Lower baseline (was 0.0002m)
-                TaxSensitivity: 0.006m,              // Higher tax sensitivity (was 0.004m)
-                UbiAttraction: 0.8m,                 // Higher UBI attraction (was 0.4m)
+                BaseMonthlyProbByIncome: 0.0001m,    
+                TaxSensitivity: 0.006m,              
+                UbiAttraction: 0.8m,                 
                 QualityOfLifeEffect: 0.3m,
                 NetworkEffects: 0.15m,
                 ReentryProbability: 0.1m
@@ -1892,10 +1692,6 @@ namespace EnhancedUbiSim
                 Regions = source.Regions.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { })
             };
         }
-
-        // ==========================================
-        // OUTPUT AND REPORTING
-        // ==========================================
 
         static void PrintEnhancedSummary(List<EnhancedMonthResult> results)
         {
@@ -1997,10 +1793,6 @@ namespace EnhancedUbiSim
                 ));
             }
         }
-
-        // ==========================================
-        // COMMAND LINE PARSING
-        // ==========================================
 
         static decimal GetArg(string[] args, string name, decimal fallback)
         {
