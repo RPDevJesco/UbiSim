@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UbiSim", "UbiSim\UbiSim.csproj", "{116628A2-D36A-4971-8F4C-0D92AC2F48EB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{116628A2-D36A-4971-8F4C-0D92AC2F48EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{116628A2-D36A-4971-8F4C-0D92AC2F48EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{116628A2-D36A-4971-8F4C-0D92AC2F48EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{116628A2-D36A-4971-8F4C-0D92AC2F48EB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
