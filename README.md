@@ -241,12 +241,6 @@ Issues and PRs welcome! Ideas:
 
 ---
 
-## License
-
-Specify your license here (e.g., MIT). If omitted, the code is all-rights-reserved by default.
-
----
-
 ## FAQ
 
 **Q: Can I run without UBI to get a baseline?**
