@@ -1,6 +1,6 @@
-# EnhancedUbiSim — An Economically-Grounded UBI Simulator (C#)
+UbiSim — An Economically-Grounded UBI Simulator (C#)
 
-EnhancedUbiSim is a **deterministic, reproducible** macro-micro simulation that explores the fiscal and real-economy impacts of a Universal Basic Income (UBI) program. It models **households, firms, labor markets, finance, trade, and regions**, calibrates **tax instruments** to a fiscal target, then runs multi-month scenarios and exports **rich CSV outputs**.
+UbiSim is a **deterministic, reproducible** macro-micro simulation that explores the fiscal and real-economy impacts of a Universal Basic Income (UBI) program. It models **households, firms, labor markets, finance, trade, and regions**, calibrates **tax instruments** to a fiscal target, then runs multi-month scenarios and exports **rich CSV outputs**.
 
 ---
 
